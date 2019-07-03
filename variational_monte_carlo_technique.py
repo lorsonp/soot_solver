@@ -7,7 +7,9 @@ import random
 import matplotlib.pyplot as plt
 
 PI = 3.1415926
-
+a = 0
+b = PI
+num_samples = 10000
 
 # Integrand
 def f_of_x(x):
@@ -16,16 +18,13 @@ def f_of_x(x):
 
 # Random number generator
 def get_rand_num(min_val, max_val):
-    range = max_val - min_val
-    choice = random.uniform(0, 1)
-    return min_val + range*choice
+    return random.uniform(min_val, max_val)
 
 
 # Crude Monte Carlo Evaluation
 def crude_MC(a, b, num_samples):
 
     sum_of_samples = 0
-
     for i in range(num_samples):
         x = get_rand_num(a, b)
         sum_of_samples += f_of_x(x)
@@ -46,6 +45,7 @@ def crude_MC_var(a, b, num_samples):
         running_total += f_of_x(x)**2
     ave_of_squares = running_total * (b - a)/num_samples
 
+
     # find square of ave
     running_total = 0
     for i in range(num_samples):
@@ -53,8 +53,7 @@ def crude_MC_var(a, b, num_samples):
         running_total += f_of_x(x)
     square_of_ave = (running_total * (b - a)/num_samples)**2
 
-    return ave_of_squares - square_of_ave
-
+    return math.fabs(ave_of_squares - square_of_ave)
 
 print("The crude Monte Carlo variance is: " + str(crude_MC_var(0, PI, 10000)))
 
@@ -119,3 +118,4 @@ def is_MC(a=0, b=PI, lamda=test_lamdas[16], num_samples=10000):
 
 
 print("The importance sampling Monte Carlo approximation is: " + str(is_MC()) + ".")
+
