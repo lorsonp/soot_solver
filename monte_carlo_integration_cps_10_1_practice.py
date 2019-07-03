@@ -4,11 +4,6 @@ import random
 from matplotlib import pyplot as plt
 from IPython.display import clear_output
 
-#  Exercise 10.1
-#  Item 1: Find estimate I(N) for the integral of f(x) = 4*np.sqrt(1-x**2) in the interval (0,1)
-
-num_samples=10000
-
 
 # Define a function to get a random number from a uniform distribution between two input values
 def get_random_number(min_val, max_val):
@@ -17,49 +12,44 @@ def get_random_number(min_val, max_val):
     return min_val + range*choice
 
 
+#  Exercise 10.1
+#  Item 1: Find estimate I(N) for the integral of f(x) = 4*np.sqrt(1-x**2) in the interval (0,1)
+
+a = 0
+b = 1
+PI = 3.1415926
+
 # Define integrand function
 def f_of_x(x):
     return 4*np.sqrt(1-x**2)
 
-def crude_monte_carlo(num_samples):
-    lwr_bnd = 0
-    upr_bnd = 1
+
+def crude_monte_carlo(a, b, num_samples):
 
     sum_of_samples=0
     for i in range(num_samples):
-        x = get_random_number(lwr_bnd, upr_bnd)
+        x = get_random_number(a, b)
         sum_of_samples += f_of_x(x)
 
-    return (upr_bnd - lwr_bnd) * float(sum_of_samples/num_samples)
+    return float((b-a)*sum_of_samples/num_samples)
 
 
-print("The crude Monte Carlo approximation is: %s" % crude_monte_carlo(10000))
+print("The crude Monte Carlo approximation for 10,000 samples is: %s" % crude_monte_carlo(a, b, num_samples=10000))
 
-# Determine the Variance of the estimation (how much f(x) varies in the domain of x)
-def get_crude_MC_variance(num_samples=10000):
-    """
-    This function returns the variance for the Crude Monte Carlo
-    """
-    int_max = 1  # the max of our integration range
 
-    # find the average of squares
-    running_total = 0
-    for i in range(num_samples):
-        x = get_random_number(0, int_max)
-        running_total += f_of_x(x)**2
-    sum_of_sqs = (int_max*running_total/num_samples)
+# Determine difference between approximation and exact value of PI (10,000 samples)
+Error_10k = abs(PI - crude_monte_carlo(a, b, num_samples=10000))
+print("The error for 10,000 samples is: %s" % Error_10k)
 
-    # find square of ave
-    running_total = 0
-    for i in range(num_samples):
-        x = get_random_number(0, int_max)
-        running_total = f_of_x(x)
-    sq_ave = (int_max*running_total/num_samples)**2
+# Make loglog plot (error as function of N)
 
-    return sum_of_sqs - sq_ave
+x = np.arange(1000, 100000, 1000)
+error = np.zeros(len(x))
 
-crude_MC_variance = get_crude_MC_variance()
-crude_MC_SE = np.sqrt(crude_MC_variance/num_samples)
+for i in range(len(x)):
+    error[i] = abs(PI - crude_monte_carlo(a=0, b=1, num_samples=x[i]))
 
-print("Variance: %s" % crude_MC_variance)
-print("Standard Error: %s" % crude_MC_SE)
+plt.figure()
+plt.loglog(x, error)
+plt.show()
+
