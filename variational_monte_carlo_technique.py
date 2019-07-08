@@ -6,9 +6,7 @@ import math
 import random
 import matplotlib.pyplot as plt
 
-PI = 3.1415926
-a = 0
-b = PI
+PI = np.pi
 
 # Integrand
 def f_of_x(x):
