@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 PI = 3.1415926
 a = 0
 b = PI
-num_samples = 10000
 
 # Integrand
 def f_of_x(x):
@@ -76,7 +75,7 @@ def is_MC_var(a, b, lamda, num_samples):
     running_total = 0
     for i in range(num_samples):
         x = get_rand_num(a, b)
-        running_total += (f_of_x(x)/g_of_x(A, lamda, x)) ** 2
+        running_total += (f_of_x(x)/g_of_x(x, A, lamda)) ** 2
 
     ave_of_squares = running_total / num_samples
 
@@ -84,14 +83,14 @@ def is_MC_var(a, b, lamda, num_samples):
     running_total = 0
     for i in range(num_samples):
         x = get_rand_num(a, b)
-        running_total += f_of_x(x)/g_of_x(A, lamda, x)
+        running_total += f_of_x(x)/g_of_x(x, A, lamda)
     square_of_ave = (running_total / num_samples) ** 2
 
-    return ave_of_squares - square_of_ave
+    return math.fabs(ave_of_squares - square_of_ave)
 
 
-# Find lowest variance by testing a range of lambda values
-test_lamdas = np.arange(0.05, 1.60, 0.05)
+# Find lowest variance by testing a range of lamda values
+test_lamdas = np.arange(0.05, 1.6, 0.05)
 variance = np.zeros(len(test_lamdas))
 
 for i in range(len(test_lamdas)):
@@ -101,21 +100,23 @@ plt.figure()
 plt.plot(test_lamdas, variance, 'o')
 plt.show()
 
-min_var = np.where(variance == variance.min())
-print("Using importance sampling, the minimum variance is found to be " + str(variance[16]) + " when lambda is " + str(test_lamdas[16]) + ".")
+optimal_lamda = test_lamdas[np.argmin(np.asarray(variance))]
+IS_variance = variance[np.argmin(np.asarray(variance))]
+
+print("Using importance sampling, the minimum variance is found to be " + str(IS_variance) + " when lambda is " + str(optimal_lamda) + ".")
 
 
 # Run importance sampling MC using optimal lambda value
-def is_MC(a=0, b=PI, lamda=test_lamdas[16], num_samples=10000):
-    A = lamda / (1 - math.exp(-1 * PI * lamda))
+def is_MC(lamda, num_samples):
+    A = lamda / (1 - math.exp(-1*PI*lamda))
 
     running_total = 0
     for i in range(num_samples):
         r = get_rand_num(0, 1)
-        running_total += f_of_x(G_inv_of_r(lamda=test_lamdas[16])) / g_of_x(G_inv_of_r(lamda=test_lamdas[16]), A, lamda=test_lamdas[16])
+        running_total += f_of_x(G_inv_of_r(lamda)) / g_of_x(G_inv_of_r(lamda), A, lamda)
 
     return float(running_total/num_samples)
 
 
-print("The importance sampling Monte Carlo approximation is: " + str(is_MC()) + ".")
+print("The importance sampling Monte Carlo approximation is: " + str(is_MC(optimal_lamda, 10000)) + ".")
 

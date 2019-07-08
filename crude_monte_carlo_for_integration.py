@@ -41,6 +41,9 @@ def crude_monte_carlo(num_samples):
     return (upper_bnd - lower_bnd) * float(sum_of_samples/num_samples)
 
 
+print("MC Estimate: " + str(crude_monte_carlo(num_samples)))
+
+
 # Determine the Variance of the estimation (how much f(x) varies in the domain of x)
 def get_crude_mc_variance(num_samples=10000):
     """
@@ -59,10 +62,10 @@ def get_crude_mc_variance(num_samples=10000):
     running_total = 0
     for i in range(num_samples):
         x = get_random_number(0, int_max)
-        running_total = f_of_x(x)
+        running_total += f_of_x(x)
     sq_ave = (int_max*running_total/num_samples)**2
 
-    return sum_of_sqs - sq_ave
+    return math.fabs(sum_of_sqs - sq_ave)
 
 
 crude_mc_variance = get_crude_mc_variance()
