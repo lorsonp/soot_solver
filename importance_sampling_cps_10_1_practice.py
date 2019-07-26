@@ -49,11 +49,14 @@ Itot = np.sum(x**1.5)
 print("Importance Sampling: ", Itot/n0)
 
 # plot next practice function
+fig, ax = plt.subplots()
 plt.xlim(0, np.pi)
 x = np.arange(0, np.pi, 0.05)
-plt.plot(x, 1./(x**2 + np.cos(x)**2))
-plt.plot(x, np.exp(-x))
-plt.plot(x, np.exp(-2*x))
+ax.plot(x, 1./(x**2 + np.cos(x)**2), label='Integrand')
+ax.plot(x, np.exp(-x), label='Weight Function 1')
+ax.plot(x, np.exp(-2*x), label='Weight Function 2')
+plt.title('Importance Sampling for Reduced Variance')
+legend = ax.legend(loc=0)
 plt.show()
 
 # function

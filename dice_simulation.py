@@ -31,10 +31,14 @@ print(myresults)
 # plot the values and see how they compare to the true value
 true_result = 1./12.
 
-plt.figure()
+fig, ax = plt.subplots()
 x = np.arange(0, len(myresults))
-plt.plot(x, myresults, 'o')  # plot simulation results as dots
-plt.plot(x, np.ones(len(x))*true_result, '-')  # plot the true result as a line
+ax.plot(x, myresults, 'o', label='Simulation Result')  # plot simulation results as dots
+ax.plot(x, np.ones(len(x))*true_result, '-', label='True Result')  # plot the true result as a line
+plt.title("Dice Simulation: Chance of rolling >=11")
+legend = ax.legend(loc=0)
+plt.xlabel("Simulation #")
+plt.ylabel("Probability")
 plt.show()
 
 print("Standard Deviation is: " + str(st.stdev(myresults, true_result)))
