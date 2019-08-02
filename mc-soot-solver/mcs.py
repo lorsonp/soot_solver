@@ -6,36 +6,63 @@ import random
 import cantera as ct
 import matplotlib.pyplot as plt
 
-# ======================== #
-# Generate particle system #
-# ======================== #
-"""Import source terms:
-- Need Temperature and pyrene concentration.
-- If applicable, import initial particle distribution"""
+def main():
+    """This is the main function, which is called to run the simulation
+        Inputs:
+        Outputs:
+    """
+    # ======================== #
+    # Generate particle system #
+    # ======================== #
+    # Import source terms:
+    # - Need Temperature and pyrene concentration.
+    # - If applicable, import initial particle distribution
 
-gas1 = ct.Solution('gri30.xml')
+    gas1 = ct.Solution('gri30.xml')
 
-# initiate matrix to track particles
-# - each row is a separate 'group'
-# - column index + 32 indicates the size of the particle (# of carbon atoms)
-# - index values denote the number of particles of that size
-# particles = np.zeros((100, 100))
+    # initiate matrix to track particles
+    # - each row is a separate 'group'
+    # - column index + 32 indicates the size of the particle (# of carbon atoms)
+    # - index values denote the number of particles of that size
+    # particles = np.zeros((100, 100))
+    particles = [
+        [4, 1, 0],
+        [4, 1, 0]
+    ]
 
-N = 100  # sample size
+    N = 100  # sample size
 
-start_time = 0.0
-stop_time = 10.0
+    # Generate sample times
+    start_time = 0.0
+    stop_time = 10.0
+    sample_times = get_sample_times(start_time, stop_time)
+    time_steps = []
+    running_time = start_time
+    # ============================================ #
+    # Wait an Exponentially Distributed Time Step #
+    # ============================================ #
+    inception_rate = get_inception_rate(1900, 0.3)
+    coagulation_rate = get_coagulation_rate(N, particles)
+    time_steps.append(calculate_time_step(inception_rate, coagulation_rate, sample_times))
+    running_time += sum(time_steps)
+
+    # ============================== #
+    # Select event probabilistically #
+    # ============================== #
+    selection = select_event(inception_rate, coagulation_rate, N, particles)
+    selection = 2
+    if selection == 1:
+        step = inception_step(particles)
+    else:
+        step = coagulation_step(particles, N)
 
 
-def sample_times(start_time, stop_time):
+def get_sample_times(start_time, stop_time):
     sample_times = np.arange(start_time, stop_time, 0.05)
     return sample_times
 
-# =============== #
-# Calculate rates #
-# =============== #
 
-def inception_rate(reaction_temp, pyrene_concentration):
+def get_inception_rate(reaction_temp, pyrene_concentration):
     """
     This function calculates the inception rate.
         Inputs:
@@ -48,11 +75,11 @@ def inception_rate(reaction_temp, pyrene_concentration):
     reduced_m_pyrene = (202.256e-3/(6.0221409e23))*(0.5) # kg
     Boltzmann_k = 1.38064852e-23  #m^2 kg s^-2 K^-1
     pyrene_coagulation = (2.2*2/3)*dA**2*(16)*(np.pi*Boltzmann_k*reaction_temp/(2*reduced_m_pyrene))**0.5
-    rate_of_inception = 0.5*pyrene_coagulation*pyrene_concentration**2.
-    return rate_of_inception
+    inception_rate = 0.5*pyrene_coagulation*pyrene_concentration**2.
+    return inception_rate
 
 
-def coagulation_rate(N, particles):
+def get_coagulation_rate(N, particles):
     """
     This function calculates the coagulation rate.
           Inputs:
@@ -74,18 +101,13 @@ def coagulation_rate(N, particles):
                 kernel_2b += particles[row][index]*(index + 32)**(-1./2.)
 
     if number_of_particles <= 2:
-        rate_of_coagulation = 0
+        coagulation_rate = 0
     else:
-        rate_of_coagulation = (1.4178/N)*((number_of_particles-2)*kernel_1 + kernel_2a*kernel_2b)
-    return rate_of_coagulation
+        coagulation_rate = (1.4178/N)*((number_of_particles-2)*kernel_1 + kernel_2a*kernel_2b)
+    return coagulation_rate
 
 
-# =========================================== #
-# Wait an exponentially distributed time step #
-# =========================================== #
-
-
-def time_step(inception_rate, coagulation_rate):
+def calculate_time_step(inception_rate, coagulation_rate, sample_times):
     """
     This function calculates the exponentially distributed time step.
         Inputs:
@@ -97,15 +119,16 @@ def time_step(inception_rate, coagulation_rate):
     r = random.uniform(0, 1)
     waiting_parameter = inception_rate + coagulation_rate
     tao = waiting_parameter**(-1)*math.log(1/r)
-    return tao
+    for times in sample_times:
+        if tao <= times:
+            continue
+        else:
+            discrete_waiting_time = times
+
+    return discrete_waiting_time
 
 
-# ============================== #
-# Select event probabilistically #
-# ============================== #
-
-
-def select_event(inception_rate, coagulation_rate):
+def select_event(inception_rate, coagulation_rate, N, particles):
     """
     This function selects the next event probabilistically.
             Inputs:
@@ -116,16 +139,44 @@ def select_event(inception_rate, coagulation_rate):
                 r = 2 indicates coagulation selection
     """
     r = random.uniform(0, 1)
-    if r >= 0 and r <= (inception_rate/(inception_rate + coagulation_rate)):
+    if 0 <= r <= (inception_rate/(inception_rate + coagulation_rate)):
         selection = 1
     else:
         selection = 2
     return selection
 
 
-# ============== #
-# Inception Step #
-# ============== #
+def group_selection(particles, E):
+    """
+    This function calculates the group probabilities and selects a group stochastically
+        Inputs:
+        Outputs:
+    """
+    # Determine probabilities for each "group" (e.g. row) of particles
+    number_of_particles = 0
+    group_prob_sum_list = np.zeros(len(particles))
+    for group in range(len(particles)):
+        group_prob_sum = 0
+        for index in range(len(particles[0])):
+            if particles[group][index] != 0:
+                number_of_particles += particles[group][index]
+                group_prob_sum += particles[group][index] * (index + 32)**E
+        group_prob_sum_list[group] = group_prob_sum
+    total_sum = np.sum(group_prob_sum_list)
+
+    group_probability = np.zeros(len(particles))
+    for group in range(len(group_prob_sum_list)):
+        group_probability[group] = group_prob_sum_list[group] / total_sum
+
+    # select group stochastically
+    r = random.uniform(0, 1)
+    for group in range(len(group_probability)):
+        if r < sum(group_probability[0:group + 1]):
+            group_selection = group
+            break
+        else:
+            continue
+    return group_selection
 
 
 def inception_step(particles):
@@ -135,41 +186,63 @@ def inception_step(particles):
         Outputs:
     """
 
-    # Determine probabilities for each "group" (e.g. row) of particles
-    number_of_particles = 0
-    row_sum = 0
-    row_sum_list = np.zeros(len(particles))
-    for row in range(0, particles-1):
-        for index in range(0, particles[i]-1):
-            if index != 0:
-                number_of_particles += particles[row][index]
-                row_sum += particles[row][index]*[index+32]**(1/6)
-        row_sum_list[row] = (row_sum)
-
-    total_sum = np.sum(row_sum_list)
-
-    row_probability = np.zeros(len(particles))
-    for index in row_sum_list:
-        row_probability[index] = row_sum_list[index]/total_sum
-
-    # select group stochastically
-    r = random.uniform(0, 1)
-    for index in row_probability:
-        if r >= sum(row_probability[0:index+1])
-            continue
-        else:
-            group_selection = index - 1
-            particles[index - 1][0] += 1
+    group = group_selection(particles, E=1)
+    particles[group][0] += 1
     return print ("Inception Step Complete")
 
 
-"""def coagulation_step()
-"""
+def coagulation_step(particles, N):
+    # Determine probabilities for each kernel
+    kernel_1_sum = 0
+    kernel_2_sum = 0
+    number_of_particles = 0
+    for group in range(len(particles)):
+        for i in range(len(particles[0]) - 1):
+            if particles[group][i] != 0:
+                number_of_particles += particles[group][i]
+                kernel_1_sum += particles[group][i] * (i + 32) ** (1 / 6)
+                for j in range(i + 1, len(particles[0])):
+                    if i == len(particles[0]) - 2 and j == len(particles[0]) - 1:
+                        number_of_particles += particles[group][j]
+                    if particles[group][j] != 0:
+                        kernel_2_sum += particles[group][i] * (i + 32) ** (2 / 3) * particles[group][i + 1] * (
+                                    j + 32) ** (-1 / 2)
+    kernel_1 = 1.4178 / (2 * N) * kernel_1_sum
+    kernel_2 = 1.4178 / (2 * N) * kernel_2_sum
+
+    # Select kernel stochastically
+    r = random.uniform(0, 1)
+    if 0 <= r <= (kernel_1 / (kernel_1 + kernel_2)):
+        selection = 1
+    else:
+        selection = 2
+
+    selection = 1
+    # Select group stochastically
+    if selection == 1:
+        group = group_selection(particles, E=1 / 6)
+
+        # Select index stochastically
+        B = 2  # upper bound of probability density function
+        index = np.random.randint(len(particles[group]))
+
+        # Verify selection acceptance
+        r = random.uniform(0, 1)
+        if 0 <= r <= particles[group][index] ** (1 / 6) / (B ** (len(particles[group]) - 2)) ** (1 / 6):
+            verify = 1
+        else:
+            verify = 2
+
+        while verify == 2:
+            index = np.random.randint(len(particles[group]))
+
+            # Verify selection acceptance
+            r = random.uniform(0, 1)
+            if 0 <= r <= particles[group][index] ** (1 / 6) / (B ** (len(particles[group]) - 2)) ** (1 / 6):
+                verify = 1
+            else:
+                verify = 2
+    return group, index
 
 # Run Simulation
-sample_times = sample_times(start_time, stop_time)
-tao = time_step(inception_rate(1900, 0.3), coagulation_rate(N, particles))
-event = select_event(inception_rate(1900, 0.3), coagulation_rate(N, particles))
-
-if event = 1:
-    inception_step = inception_rate(particles)
+main()
