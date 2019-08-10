@@ -3,37 +3,36 @@
 import math
 import numpy as np
 import random
+# from burner_flame import pyrene_number_concentration, reaction_temp
 import cantera as ct
 import matplotlib.pyplot as plt
+
 
 def initiate_system():
     # ======================== #
     # Generate particle system #
     # ======================== #
-    # Import source terms:
-    # - Need Temperature and pyrene concentration.
-    # - If applicable, import initial particle distribution
-
-    gas1 = ct.Solution('gri30.xml')
+    pyrene_concentration = 1.2769e19
+    reaction_temp = 1915.39
 
     # initiate matrix to track particles
     # - each row is a separate 'group'
     # - column index + 32 indicates the size of the particle (# of carbon atoms)
     # - index values denote the number of particles of that size
     # particles = np.zeros((100, 100))
-    particles = np.zeros([2, 100], dtype = int)
+    particles = np.zeros([2, 10], dtype = int)
 
     N = 1000  # sample size
 
     start_time = 0.0
-    stop_time = 5
-    sample_times = get_sample_times(start_time, stop_time)
+    stop_time = 1
+    # sample_times = get_sample_times(start_time, stop_time)
     running_time = start_time
     time_steps = []
 
-    return particles, N, sample_times, running_time, stop_time, time_steps
+    return pyrene_concentration, reaction_temp, particles, N, running_time, stop_time, time_steps
 
-def main(particles, N, sample_times, running_time, stop_time, time_steps):
+def main(particles, N, running_time, stop_time, time_steps, reaction_temp, pyrene_concentration):
     """This is the main function.
         Each iteration of the main function waits an exponentially distributed time step, selects an event, and updates the particle system.
         The function cycles through the aforementioned steps until the stop_time is reached
@@ -45,9 +44,9 @@ def main(particles, N, sample_times, running_time, stop_time, time_steps):
         # ============================================ #
         # Wait an Exponentially Distributed Time Step #
         # ============================================ #
-        inception_rate = get_inception_rate(1900, 1e10)
+        inception_rate = get_inception_rate(reaction_temp, pyrene_concentration)
         coagulation_rate = get_coagulation_rate(N, particles)
-        time_steps.append(calculate_time_step(inception_rate, coagulation_rate, sample_times))
+        time_steps.append(calculate_time_step(inception_rate, coagulation_rate))
         running_time += sum(time_steps)
 
         # ============================== #
@@ -67,7 +66,7 @@ def main(particles, N, sample_times, running_time, stop_time, time_steps):
 
 
 def get_sample_times(start_time, stop_time):
-    sample_times = np.arange(start_time, stop_time, 1e-5)
+    sample_times = np.arange(start_time + 1e-25, stop_time, 1e-25)
     return sample_times
 
 
@@ -116,7 +115,7 @@ def get_coagulation_rate(N, particles):
     return coagulation_rate
 
 
-def calculate_time_step(inception_rate, coagulation_rate, sample_times):
+def calculate_time_step(inception_rate, coagulation_rate):
     """
     This function calculates the exponentially distributed time step.
         Inputs:
@@ -128,13 +127,15 @@ def calculate_time_step(inception_rate, coagulation_rate, sample_times):
     r = random.uniform(0, 1)
     waiting_parameter = inception_rate + coagulation_rate
     tao = waiting_parameter**(-1)*math.log(1/r)
+    """
     for times in sample_times:
         if tao <= times:
             continue
         else:
             discrete_waiting_time = times
+    """
 
-    return discrete_waiting_time
+    return tao
 
 
 def select_event(inception_rate, coagulation_rate, N, particles):
@@ -292,7 +293,7 @@ def coagulation_step(particles, N):
             index_2 = select_index(particles, group=group_2, E=-1/2)
 
     # Determine whether fictitious & update particle system
-    size_1 = index_1 + 1-
+    size_1 = index_1 + 1
     size_2 = index_2 + 1
     coag_kernel = (1/size_1 + 1/size_2)**0.5 * ((1/size_1)**(1/3) + (1/size_2)**(1/3))**2
     maj_kernel = 1.4178 * (size_1**-0.5 + size_2**-0.5) * (size_1**(2/3) + size_2**(2/3))
@@ -312,5 +313,5 @@ def coagulation_step(particles, N):
 
 
 # Run Simulation
-[particles, N, sample_times, running_time, stop_time, time_steps] = initiate_system()
-main(particles, N, sample_times, running_time, stop_time, time_steps)
+[pyrene_concentration, reaction_temp, particles, N, running_time, stop_time, time_steps] = initiate_system()
+main(particles, N, running_time, stop_time, time_steps, reaction_temp, pyrene_concentration)
