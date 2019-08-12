@@ -9,7 +9,6 @@ import math
 import numpy as np
 import random
 from burner_flame import pyrene_number_concentration, reaction_temp
-import cantera as ct
 import matplotlib.pyplot as plt
 
 # to save time while building, temporarily define concentration and temp
@@ -86,16 +85,17 @@ def initiate_system():
     # define start, running, and stop time
     start_time = 0.0
     parameters["Running Time"] = start_time
-    parameters["Stop Time"] = 1
-    time_steps = []
+    parameters["Stop Time"] = 1e-19
+    time_step = 0
 
+    parameters["Count Time Steps"] = 0
     parameters["Count Inception Steps"] = 0
     parameters["Count Coagulation Steps"] = 0
 
-    return parameters, particles, group_size_bins, time_steps
+    return parameters, particles, group_size_bins, time_step
 
 
-def main(pyrene_concentration, reaction_temp, parameters, particles, group_size_bins, time_steps):
+def main(pyrene_concentration, reaction_temp, parameters, particles, group_size_bins, time_step):
     """This is the main function.
         Each iteration of the main function waits an exponentially distributed time step, selects an event, and updates the particle system.
         The function cycles through the aforementioned steps until the stop_time is reached
@@ -103,14 +103,14 @@ def main(pyrene_concentration, reaction_temp, parameters, particles, group_size_
         Outputs:
     """
     while parameters["Running Time"] < parameters["Stop Time"]:
-        print("Time:", parameters["Running Time"], "seconds.")
+        # print("Time:", parameters["Running Time"], "seconds.")
         # ============================================ #
         # Wait an Exponentially Distributed Time Step #
         # ============================================ #
         inception_rate = get_inception_rate(reaction_temp, pyrene_concentration)
         coagulation_rate = get_coagulation_rate(particles, parameters)
-        time_steps.append(calculate_time_step(inception_rate, coagulation_rate))
-        parameters["Running Time"] = sum(time_steps)
+        time_step = calculate_time_step(inception_rate, coagulation_rate)
+        parameters["Running Time"] += time_step
 
         # ============================== #
         # Select event probabilistically #
@@ -124,6 +124,11 @@ def main(pyrene_concentration, reaction_temp, parameters, particles, group_size_
             particles, parameters, pyrene_concentration = inception_step(particles, parameters, pyrene_concentration)
         else:
             particles, parameters = coagulation_step(particles, parameters, group_size_bins)
+
+        parameters["Count Time Steps"] += 1
+        if parameters["Count Time Steps"] is 1000:
+            print("1000 time steps. Running Time: "+parameters["Running Time"]+".")
+            parameters["Count Time Steps"] -= 1000
 
     return particles, parameters
 
@@ -401,6 +406,9 @@ def plot_size_distribution(particles, parameters):
 
 
 # Run Simulation
-[parameters, particles, group_size_bins, time_steps] = initiate_system()
-main(pyrene_concentration, reaction_temp, parameters, particles, group_size_bins, time_steps)
+[parameters, particles, group_size_bins, time_step] = initiate_system()
+main(pyrene_concentration, reaction_temp, parameters, particles, group_size_bins, time_step)
 plot_size_distribution(particles, parameters)
+
+for group in particles:
+    print("Group "+str(group)+" has "+str(len(particles[group]))+" particles.")
