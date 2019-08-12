@@ -8,18 +8,17 @@
 import math
 import numpy as np
 import random
-# from burner_flame import pyrene_number_concentration, reaction_temp
+from burner_flame import pyrene_number_concentration, reaction_temp
 import cantera as ct
 import matplotlib.pyplot as plt
 
 # to save time while building, temporarily define concentration and temp
-pyrene_concentration = 1.2769e19  # number of pyrene molecules/m^3
-reaction_temp = 1915.39  # Kelvin
+pyrene_concentration = pyrene_number_concentration  # number of pyrene molecules/m^3
 count_inception_steps = 0
 count_coagulation_steps = 0
 
 def initiate_system():
-    """This function initiates the particle state and .
+    """This function initiates the particle state and defines the starting parameters.
             Each iteration of the main function waits an exponentially distributed time step, selects an event, and updates the particle system.
             The function cycles through the aforementioned steps until the stop_time is reached
             Inputs:
@@ -58,6 +57,7 @@ def initiate_system():
     # 20        262,145 - 524,288
     # 21        524,289 - 1,048,576
 
+    # set initial parameters
     parameters = dict()
     parameters["N"] = 1000  # sample size
     parameters["B"] = 2  # acceptance probability for groups
@@ -66,11 +66,11 @@ def initiate_system():
     max_size = 10**6  # maximum particle size
     number_of_groups = math.ceil(np.log(max_size)/np.log(parameters["B"]) + 1)
 
-
     # define groups of particles
     particles = dict()
     group_size_bins = dict()
 
+    # begin each group as an empty list and define group size bin limits
     for group in range(1, number_of_groups + 1):
         if group == 1:
             group_size_bins[1] = [0, 1]
@@ -83,9 +83,10 @@ def initiate_system():
     for i in range(1, parameters["N"] + 1):
         particles[1].append(1)
 
+    # define start, running, and stop time
     start_time = 0.0
     parameters["Running Time"] = start_time
-    parameters["Stop Time"] = 1e-14
+    parameters["Stop Time"] = 1
     time_steps = []
 
     parameters["Count Inception Steps"] = 0
@@ -109,7 +110,7 @@ def main(pyrene_concentration, reaction_temp, parameters, particles, group_size_
         inception_rate = get_inception_rate(reaction_temp, pyrene_concentration)
         coagulation_rate = get_coagulation_rate(particles, parameters)
         time_steps.append(calculate_time_step(inception_rate, coagulation_rate))
-        parameters["Running Time"] += sum(time_steps)
+        parameters["Running Time"] = sum(time_steps)
 
         # ============================== #
         # Select event probabilistically #
@@ -125,11 +126,6 @@ def main(pyrene_concentration, reaction_temp, parameters, particles, group_size_
             particles, parameters = coagulation_step(particles, parameters, group_size_bins)
 
     return particles, parameters
-
-
-def get_sample_times(start_time, stop_time):
-    sample_times = np.arange(start_time + 1e-25, stop_time, 1e-25)
-    return sample_times
 
 
 def get_inception_rate(reaction_temp, pyrene_concentration):
@@ -187,7 +183,7 @@ def calculate_time_step(inception_rate, coagulation_rate):
     """
     r = random.uniform(0, 1)
     waiting_parameter = inception_rate + coagulation_rate
-    tao = waiting_parameter**(-1)*math.log(1/r)
+    tao = waiting_parameter**(-1)*np.log(1/r)
     """
     for times in sample_times:
         if tao <= times:
@@ -300,20 +296,14 @@ def coagulation_step(particles, parameters, group_size_bins):
         kernel_1_counter = 0
         kernel_2_counter = 0
         if sum(particles[group]) is not 0:
-            if group is 1:
-                for index_1 in range(len(particles[group]) - 1):
-                    for index_2 in range(index_1 + 1, len(particles[group]) - 1):
-                        if index_1 is not len(particles[group]) - 1:
-                            kernel_1_counter += particles[group][index_1] ** (1 / 6)
-                            kernel_2_counter += particles[group][index_1] ** (2 / 3) * particles[group][index_2] ** (-1 / 2)
-                        else:
-                            kernel_1_counter += particles[group][index_1] ** (1 / 6)
+            for index_1 in range(len(particles[group]) - 1):
+                for index_2 in range(index_1 + 1, len(particles[group])):
+                    if index_1 is not particles[group][-1]:
+                        kernel_1_counter += particles[group][index_1] ** (1 / 6)
+                        kernel_2_counter += particles[group][index_1] ** (2 / 3) * particles[group][index_2] ** (-1 / 2)
+                    else:
+                        kernel_1_counter += particles[group][index_1] ** (1 / 6)
 
-            else:
-                for index in range(0, len(particles[group])):
-                    kernel_1_counter += particles[group][index] ** (1 / 6)
-                    kernel_2_counter += particles[group][index] ** (2 / 3) * particles[group][index] ** (-1 / 2) - \
-                                        particles[group][index] ** (1 / 6)
         kernel_1_group_sum.append(kernel_1_counter)
         kernel_2_group_sum.append(kernel_2_counter)
 
@@ -376,6 +366,7 @@ def coagulation_step(particles, parameters, group_size_bins):
 
     return particles, parameters
 
+
 def plot_size_distribution(particles, parameters):
     # Count number of particles of each size
     particle_size = []
@@ -400,7 +391,7 @@ def plot_size_distribution(particles, parameters):
         number_density[size] = sorted_particle_size_and_count[size]/parameters["Number of Particles"]
 
     # Plot size distribution
-    plt.plot(list(sorted_particle_size_and_count.keys()), list(sorted_particle_size_and_count.values()), 'bo')
+    plt.plot(list(number_density.keys()), list(number_density.values()), 'bo')
     plt.title("Particle size distribution at %.2E seconds" % parameters["Running Time"])
     plt.xlabel("Particle size (# of monomers)")
     plt.ylabel("Number concentration")
