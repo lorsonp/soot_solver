@@ -255,16 +255,16 @@ def select_group_and_index(particles, parameters, kernel_group_sum, E):
 
 def select_k1_index_2(parameters):
     index_2_selection = np.random.randint(parameters["Number of Particles"])
-    group_sum = 0
+    group_sum = []
     for group in particles:
         if len(particles[group]) is not 0:
-            group_sum += len(particles[group])
-            if index_2_selection <= group_sum:
+            group_sum.append(len(particles[group]))
+            if index_2_selection <= sum(group_sum):
                 group_2 = group
                 break
 
     if group_2 > 1:
-        index_2 = index_2_selection - group_sum - 1
+        index_2 = index_2_selection - sum(group_sum[0:group]) - 1
     else:
         index_2 = index_2_selection - 1
     return group_2, index_2
@@ -347,7 +347,7 @@ def coagulation_step(particles, parameters, group_size_bins):
 
         # Remove 2 selected particles
         del (particles[group_1][index_1])
-        del (particles[group_1][index_1])
+        del (particles[group_2][index_2])
 
         # Add new particle to system
         new_particle_size = size_1 + size_2
@@ -398,6 +398,7 @@ def plot_size_distribution(particles, parameters):
     plt.xscale('log')
     plt.xlim(1, 1e6)
     plt.show()
+
 
 # Run Simulation
 [parameters, particles, group_size_bins, time_steps] = initiate_system()
