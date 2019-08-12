@@ -376,7 +376,39 @@ def coagulation_step(particles, parameters, group_size_bins):
 
     return particles, parameters
 
+def plot_size_distribution(particles, parameters):
+    # Count number of particles of each size
+    particle_size = []
+    particle_count = []
+    for group in particles:
+        for index in particles[group]:
+            if index not in particle_size:
+                particle_size.append(index)
+                particle_count.append(particles[group].count(index))
+
+    particle_size_and_count = {key: value for key, value in zip(particle_size, particle_count)}
+
+    # Sort dictionary by particle size
+    sorted_particle_size_and_count = {}
+    for key in sorted(particle_size_and_count.keys()):
+        sorted_particle_size_and_count[key] = particle_size_and_count[key]
+    print(sorted_particle_size_and_count)
+
+    # Calculate number density of each particle size
+    number_density = {}
+    for size in sorted_particle_size_and_count:
+        number_density[size] = sorted_particle_size_and_count[size]/parameters["Number of Particles"]
+
+    # Plot size distribution
+    plt.plot(list(sorted_particle_size_and_count.keys()), list(sorted_particle_size_and_count.values()), 'bo')
+    plt.title("Particle size distribution at %.2E seconds" % parameters["Running Time"])
+    plt.xlabel("Particle size (# of monomers)")
+    plt.ylabel("Number concentration")
+    plt.xscale('log')
+    plt.xlim(1, 1e6)
+    plt.show()
 
 # Run Simulation
 [parameters, particles, group_size_bins, time_steps] = initiate_system()
 main(pyrene_concentration, reaction_temp, parameters, particles, group_size_bins, time_steps)
+plot_size_distribution(particles, parameters)
