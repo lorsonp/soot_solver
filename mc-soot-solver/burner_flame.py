@@ -37,9 +37,9 @@ f.write_csv('c2h2_o2_ar_burner_flame.csv', quiet=False)
 # Get pyrene concentration
 pyrene_index = gas.species_index('A4')
 index, max_pyrene_molar_concentration = max(enumerate(f.concentrations[pyrene_index, :]), key=operator.itemgetter(1)) #kmoles/m^3
-pyrene_number_concentration = max_pyrene_molar_concentration * 1000 *  6.0221409e23
+# pyrene_number_concentration = max_pyrene_molar_concentration * 1000 *  6.0221409e23
 reaction_temp = f.T[index]
-
+print(max_pyrene_molar_concentration, reaction_temp)
 """
 # plot major species
 plt.plot(f.grid, f.X[gas.species_index('C4H2'), :], 'b', label='C4H2')

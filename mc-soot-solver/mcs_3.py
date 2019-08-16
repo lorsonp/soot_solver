@@ -355,7 +355,7 @@ def coagulation_step(particles, parameters, group_size_bins):
     size_1 = particles[group_1][index_1]
     size_2 = particles[group_2][index_2]
 
-    coag_kernel = (1 / size_1 + 1 / size_2) ** 0.5 * ((1 / size_1) ** (1 / 3) + (1 / size_2) ** (1 / 3)) ** 2
+    coag_kernel = (1 / size_1 + 1 / size_2) ** 0.5 * (size_1 ** (1 / 3) + size_2 ** (1 / 3)) ** 2
     maj_kernel = 1.4178 * (size_1 ** -0.5 + size_2 ** -0.5) * (size_1 ** (2 / 3) + size_2 ** (2 / 3))
 
     r = random.uniform(0, 1)

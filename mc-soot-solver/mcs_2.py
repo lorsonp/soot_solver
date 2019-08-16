@@ -8,13 +8,14 @@
 import math
 import numpy as np
 import random
-from burner_flame import max_pyrene_molar_concentration, reaction_temp
+# from burner_flame import pyrene_number_concentration, reaction_temp
 import matplotlib.pyplot as plt
 
 # to save time while building, temporarily define concentration and temp
-pyrene_concentration = max_pyrene_molar_concentration  # number of pyrene moles/m^3
-# reaction_temp = 1915.39  # Kelvin
 # pyrene_concentration = pyrene_number_concentration  # number of pyrene molecules/m^3
+pyrene_concentration = 1.2769e19  # number of pyrene molecules/m^3
+reaction_temp = 1915.39  # Kelvin
+
 
 def initiate_system():
     """This function initiates the particle state and defines the starting parameters.
@@ -60,7 +61,6 @@ def initiate_system():
     parameters = {}
     parameters["N"] = 1000  # sample size
     parameters["B"] = 2  # acceptance probability for groups
-    # parameters["Number of Particles"] = parameters["N"]
 
     max_size = 10**6  # maximum particle size
     number_of_groups = math.ceil(np.log(max_size)/np.log(parameters["B"]) + 1)
@@ -103,9 +103,8 @@ def main(pyrene_concentration, reaction_temp, parameters, particles, group_size_
         Inputs:
         Outputs:
     """
-    # while parameters["Running Time"] < parameters["Stop Time"]:
-    for i in range(1):
-        # print("Time:", parameters["Running Time"], "seconds.")
+    while parameters["Running Time"] < parameters["Stop Time"]:
+
         # ============================================ #
         # Wait an Exponentially Distributed Time Step #
         # ============================================ #
@@ -122,7 +121,6 @@ def main(pyrene_concentration, reaction_temp, parameters, particles, group_size_
         # ============================================ #
         # complete event step & update particle system #
         # ============================================ #
-        selection = 2
 
         if selection == 1:
             particles, parameters, pyrene_concentration = inception_step(particles, parameters, pyrene_concentration)
@@ -130,14 +128,14 @@ def main(pyrene_concentration, reaction_temp, parameters, particles, group_size_
             particles, parameters = coagulation_step(particles, parameters, group_size_bins)
 
         parameters["Count Time Steps"] += 1
-        if parameters["Count Time Steps"] is 1000:
-            print("1000 time steps. Running Time: "+parameters["Running Time"]+".")
-            parameters["Count Time Steps"] -= 1000
+        if parameters["Count Time Steps"] == 1000:
+            print("1000 time steps. Running Time: "+str(parameters["Running Time"])+".")
+            parameters["Count Time Steps"] = parameters["Count Time Steps"] - 1000
 
 
-        if i == 0:
-            ave_time_step = sum(time_steps) / parameters["Count Time Steps"]
-            print("Average Time Step: " + str(ave_time_step))
+        # if i == 0:
+        #    ave_time_step = sum(time_steps) / parameters["Count Time Steps"]
+        #    print("Average Time Step: " + str(ave_time_step))
 
     return particles, parameters
 
@@ -154,9 +152,11 @@ def get_inception_rate(reaction_temp, pyrene_concentration):
     dA = (1.395e-10)*(3**0.5) # m
     reduced_m_pyrene = (202.256e-3/(6.0221409e23))*(0.5) # kg
     Boltzmann_k = 1.38064852e-23  #m^2 kg s^-2 K^-1
-    pyrene_coagulation = (2.2*4*2/3)*dA**2*(np.pi*Boltzmann_k*reaction_temp/(2*reduced_m_pyrene))**0.5
-    inception_rate = 0.5*pyrene_coagulation*pyrene_concentration**2.
-    print(inception_rate)
+    pyrene_coagulation = (2.2*4*2/3)*dA**2*16*(np.pi*Boltzmann_k*reaction_temp/(2*reduced_m_pyrene))**0.5
+    pyrene_coagulation = pyrene_coagulation * (1e6)  # convert to cm^3/s
+    pyrene_concentration = pyrene_concentration / (1e6)  # convert to molecules/ cm^3
+    inception_rate = 0.5*pyrene_coagulation*pyrene_concentration**2
+
     return inception_rate
 
 
@@ -185,7 +185,8 @@ def get_coagulation_rate(particles, parameters):
         coagulation_rate = 0
     else:
         coagulation_rate = (1.4178/parameters["N"])*((number_of_particles-2)*kernel_1 + kernel_2a*kernel_2b)
-        print(coagulation_rate)
+        coagulation_rate = coagulation_rate / (1e6)  # convert to 1/(cm^3*s)
+
     return coagulation_rate
 
 
@@ -199,7 +200,6 @@ def calculate_time_step(inception_rate, coagulation_rate):
             tao = the exponentially distributed time step
     """
     r = random.uniform(0, 1)
-    r = 0.5
     waiting_parameter = inception_rate + coagulation_rate
 
     tao = waiting_parameter**(-1)*np.log(1/r)
@@ -284,8 +284,7 @@ def inception_step(particles, parameters, pyrene_concentration):
 
     # Add particle to group 1
     particles[1].append(1)
-    parameters["Number of Particles"] += 1
-    parameters["Group Sum"][1] += 1
+    parameters["Group Sum"][0] += 1
     pyrene_concentration = pyrene_concentration - 2*parameters["N"]
     parameters["Count Inception Steps"] += 1
 
@@ -339,7 +338,7 @@ def coagulation_step(particles, parameters, group_size_bins):
     size_1 = particles[group_1][index_1]
     size_2 = particles[group_2][index_2]
 
-    coag_kernel = (1 / size_1 + 1 / size_2) ** 0.5 * ((1 / size_1) ** (1 / 3) + (1 / size_2) ** (1 / 3)) ** 2
+    coag_kernel = (1 / size_1 + 1 / size_2) ** 0.5 * (size_1 ** (1 / 3) + size_2 ** (1 / 3)) ** 2
     maj_kernel = 1.4178 * (size_1 ** -0.5 + size_2 ** -0.5) * (size_1 ** (2 / 3) + size_2 ** (2 / 3))
 
     r = random.uniform(0, 1)
@@ -365,7 +364,6 @@ def coagulation_step(particles, parameters, group_size_bins):
                     parameters["Group Sum"][group - 1] += 1
                     break
 
-        # Update number of particles
         parameters["Count Coagulation Steps"] += 1
 
     else:
