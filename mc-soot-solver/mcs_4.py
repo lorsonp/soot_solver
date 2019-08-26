@@ -7,20 +7,20 @@ import matplotlib.pyplot as plt
 max_pyrene_molar_concentration = 2.117959208612895e-08      # kmole/m^3
 reaction_temp = 1916.1938344245214                          # K
 
+
 def initiate_system(max_pyrene_molar_concentration, reaction_temp):
     # constants
     C = {}
-    C["NA"] = 6.0243e23     # mol^-1
-    C["kB"] = 1.3807e-16    # m^2*kg/(s^2*K)
+    C["NA"] = 6.0221409e23     # mol^-1
+    C["kB"] = 1.38064852e-23    # m^2*kg/(s^2*K)
     C["mc"] = 12            # amu
-    C["rho"] = 1.8e-3       # kg/cm^3
+    C["rho"] = 1.8e -3       # kg/cm^3
 
     # set initial parameters
     P = {}
     P["pyrene_number_concentration"] = max_pyrene_molar_concentration * 1000 * C["NA"] / 1e6  # molecules/cm^3
     P["temp"] = reaction_temp
-    P["N"] = 1000  # sample size
-    P["B"] = 2  # acceptance probability for groupsj
+    P["N"] = 1e3  # sample size
     mc_kg = C["mc"]*1.661e-27   # convert to kg
     kB_cm = C["kB"]*1e4         # convert to cm^2*kg/(s^2*K)
     P["A"] = 2.2 * (3*mc_kg/(4*np.pi*C["rho"]))**(1/6) * (6*kB_cm*P["temp"]/C["rho"])  # cm/s
@@ -40,19 +40,21 @@ def initiate_system(max_pyrene_molar_concentration, reaction_temp):
     P["Count Coagulation Steps"] = 0
     P["Count Fictitious Coagulation Steps"] = 0
 
-    return C, P, particles
+    tao = []
+    return C, P, particles, tao
 
 
-def main(C, P, particles):
+def main(C, P, particles, tao):
 
-    # while P["Running Time"] < P["Stop Time"]:
-    for i in range(10):
+    while P["Running Time"] < P["Stop Time"]:
+    # for i in range(1000000):
         # ============================================ #
         # Wait an Exponentially Distributed Time Step #
         # ============================================ #
         inception_rate = get_inception_rate(C, P)
         coagulation_rate, kernel_1, kernel_2 = get_coagulation_rate(C, P, particles)
-        P["Running Time"] += calculate_time_step(rates=[inception_rate, coagulation_rate])
+        tao = calculate_time_step(rates=[inception_rate, coagulation_rate])
+        P["Running Time"] += tao
 
         # ============================== #
         # Select event probabilistically #
@@ -62,21 +64,27 @@ def main(C, P, particles):
         # ============================================ #
         # complete event step & update particle system #
         # ============================================ #
-        selection = 1
+
         if selection == 1:
             particles, P = inception_step(particles, P)
         else:
-            particles, P = coagulation_step(particles, P, Y1, Y2)
+            particles, P = coagulation_step(particles, P, kernel_1, kernel_2)
 
-    return particles, P
+        P["Count Time Steps"] += 1
+        if P["Count Time Steps"] == 100000:
+            # print("time step: "+str(tao))
+            # print("pyrene number concentration: "+str(P["pyrene_number_concentration"]))
+            print("100,000 time steps. Running time: "+str(P["Running Time"])+" seconds.")
+            P["Count Time Steps"] = P["Count Time Steps"] - 10000
+
+    return particles, P, tao
 
 
 def get_inception_rate(C, P):
-    C["mc"] = C["mc"] * 1.661e-27  # convert amu > kg
-    C["kB"] = C["kB"] * 1e4  # convert m^2*kg/(s^2*K) to cm^2*kg/(s^2*K)
+    mc_kg = C["mc"] * 1.661e-27  # convert amu > kg
+    kB_cm = C["kB"] * 1e4  # convert m^2*kg/(s^2*K) to cm^2*kg/(s^2*K)
     d_PAH = 7.9e-8  # cm
-
-    pyrene_coagulation = 2.2 * (np.pi*C["kB"]*P["temp"]/C["mc"])**0.5 * d_PAH**2  # cm^3/s
+    pyrene_coagulation = 2.2 * (np.pi*kB_cm*P["temp"]/mc_kg)**0.5 * d_PAH**2  # cm^3/s
     inception_rate = 0.5 * pyrene_coagulation * P["pyrene_number_concentration"]**2 * P["N"]
 
     return inception_rate
@@ -87,6 +95,8 @@ def get_coagulation_rate(C, P, particles):
 
     if number_of_particles <= 2:
         coagulation_rate = 0
+        kernel_1 = 0
+        kernel_2 = 0
     else:
         kernel_1 = np.zeros(len(particles))
         kernel_2 = np.zeros(len(particles))
@@ -137,9 +147,12 @@ def inception_step(particles, P):
 
     # Add particle of size 32 to ensemble
     particles[0] += 1
-    P["pyrene_number_concentration"] = P["pyrene_number_concentration"] - 2*P["N"]  # how to determine # of particles per stochastic particle?
-    P["Count Inception Steps"] += 1
+    if P["pyrene_number_concentration"] > 0:
+        P["pyrene_number_concentration"] = P["pyrene_number_concentration"] - 2*P["N"]  # how to determine # of particles per stochastic particle?
+    else:
+        P["pyrene_number_concentration"] = 0
 
+    P["Count Inception Steps"] += 1
     return particles, P
 
 
@@ -154,7 +167,7 @@ def select_particle(particles):
     return i_size, i_index
 
 
-def select_particle_weighted(particles, rates):
+def select_particle_weighted(particles, rates, E):
 
     selection = select_probability(rates)
     j_size = selection + 32
@@ -184,12 +197,12 @@ def coagulation_step(particles, P, kernel_1, kernel_2):
 
         # Select particles
         i_size, i_index = select_particle_weighted(particles, rates=kernel_2, E=1 / 6)
-        j_size, j_index = select_particle_weighted(particles, rates=kernel_1, E=-1 / 2)
+        j_size, j_index = select_particle_weighted(particles, rates=kernel_1, E= -1 / 2)
 
         # Verify i_index != j_index
         while i_index == j_index:
             i_size, i_index = select_particle_weighted(particles, rates=kernel_2, E=1 / 6)
-            j_size, j_index = select_particle_weighted(particles, rates=kernel_1, E=-1 / 2)
+            j_size, j_index = select_particle_weighted(particles, rates=kernel_1, E= -1 / 2)
 
     # Determine whether fictitious & update particle system
 
@@ -213,13 +226,21 @@ def coagulation_step(particles, P, kernel_1, kernel_2):
         else:
             particles[new_particle_size - 32] += 1
 
-        parameters["Count Coagulation Steps"] += 1
+        P["Count Coagulation Steps"] += 1
 
     else:
-        parameters["Count Fictitious Coagulation Steps"] += 1
+        P["Count Fictitious Coagulation Steps"] += 1
 
-    return particles
+    return particles, P
 
 
-[C, P, particles] = initiate_system(max_pyrene_molar_concentration, reaction_temp)
-main(C, P, particles)
+[C, P, particles, tao] = initiate_system(max_pyrene_molar_concentration, reaction_temp)
+[particles, P, tao] = main(C, P, particles, tao)
+x_axis = [10000 * i for i in range (1,101)]
+plt.plot(x_axis, tao, 'bo')
+plt.yscale('log')
+plt.title("Time step duration")
+plt.xlabel("nth time step")
+plt.ylabel("time step duration (s)")
+plt.show()
+

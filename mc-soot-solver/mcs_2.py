@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 
 # to save time while building, temporarily define concentration and temp
 # pyrene_concentration = pyrene_number_concentration  # number of pyrene molecules/m^3
-pyrene_concentration = 1.2769e19  # number of pyrene molecules/m^3
-reaction_temp = 1915.39  # Kelvin
+pyrene_concentration = 2.117959208612895e-08 * 1000 *   # number of pyrene molecules/m^3
+reaction_temp = 1916.1938344245214  # Kelvin
 
 
 def initiate_system():
@@ -103,8 +103,8 @@ def main(pyrene_concentration, reaction_temp, parameters, particles, group_size_
         Inputs:
         Outputs:
     """
-    while parameters["Running Time"] < parameters["Stop Time"]:
-
+    # while parameters["Running Time"] < parameters["Stop Time"]:
+    for i in range(1):
         # ============================================ #
         # Wait an Exponentially Distributed Time Step #
         # ============================================ #
@@ -149,11 +149,10 @@ def get_inception_rate(reaction_temp, pyrene_concentration):
         Outputs:
             The rate of inception (1/(m^3*s))
     """
-    dA = (1.395e-10)*(3**0.5) # m
+    dA = (1.395e-10)*(3**0.5) * 1e2 # cm
     reduced_m_pyrene = (202.256e-3/(6.0221409e23))*(0.5) # kg
-    Boltzmann_k = 1.38064852e-23  #m^2 kg s^-2 K^-1
+    Boltzmann_k = 1.38064852e-23 * 1e4  #cm^2 kg s^-2 K^-1
     pyrene_coagulation = (2.2*4*2/3)*dA**2*16*(np.pi*Boltzmann_k*reaction_temp/(2*reduced_m_pyrene))**0.5
-    pyrene_coagulation = pyrene_coagulation * (1e6)  # convert to cm^3/s
     pyrene_concentration = pyrene_concentration / (1e6)  # convert to molecules/ cm^3
     inception_rate = 0.5*pyrene_coagulation*pyrene_concentration**2
 
@@ -388,6 +387,7 @@ def plot_size_distribution(particles, parameters):
         number_density[size] = particle_size_and_count[size] / sum(parameters["Group Sum"])
 
     # Plot size distribution
+    plt.hold(True)
     plt.plot(list(number_density.keys()), list(number_density.values()), 'bo')
     plt.title("Particle size distribution at %.2E seconds" % parameters["Running Time"])
     plt.xlabel("Particle size (# of monomers)")
