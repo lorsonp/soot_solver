@@ -4,21 +4,24 @@ import random
 # from burner_flame import max_pyrene_molar_concentration, reaction_temp
 import matplotlib.pyplot as plt
 
-max_pyrene_molar_concentration = 2.117959208612895e-08      # kmole/m^3
-reaction_temp = 1916.1938344245214                          # K
+# max_pyrene_molar_concentration = 2.117959208612895e-08      # kmole/m^3
+# reaction_temp = 1916.1938344245214                          # K
 
+# try using a lower concentraton of pyrene to test algorithm
+pyrene_molar_concentration = 1.992921496406221e-10        # kmole/m^3
+reaction_temp = 300.0
 
-def initiate_system(max_pyrene_molar_concentration, reaction_temp):
+def initiate_system(pyrene_molar_concentration, reaction_temp):
     # constants
     C = {}
     C["NA"] = 6.0221409e23     # mol^-1
     C["kB"] = 1.38064852e-23    # m^2*kg/(s^2*K)
     C["mc"] = 12            # amu
-    C["rho"] = 1.8e -3       # kg/cm^3
+    C["rho"] = 1.8e-3       # kg/cm^3
 
     # set initial parameters
     P = {}
-    P["pyrene_number_concentration"] = max_pyrene_molar_concentration * 1000 * C["NA"] / 1e6  # molecules/cm^3
+    P["pyrene_number_concentration"] = pyrene_molar_concentration * 1000 * C["NA"] / 1e6  # molecules/cm^3
     P["temp"] = reaction_temp
     P["N"] = 1e3  # sample size
     mc_kg = C["mc"]*1.661e-27   # convert to kg
@@ -234,7 +237,7 @@ def coagulation_step(particles, P, kernel_1, kernel_2):
     return particles, P
 
 
-[C, P, particles, tao] = initiate_system(max_pyrene_molar_concentration, reaction_temp)
+[C, P, particles, tao] = initiate_system(pyrene_molar_concentration, reaction_temp)
 [particles, P, tao] = main(C, P, particles, tao)
 x_axis = [10000 * i for i in range (1,101)]
 plt.plot(x_axis, tao, 'bo')

@@ -10,13 +10,15 @@ import operator
 p = 0.12 * ct.one_atm
 tburner = 300.0
 reactants = 'AR:0.55, O2:0.2143, C2H2:0.2357'  # premixed gas composition
-width = 0.5 # m
+width = 0.1 # m
 loglevel = 1  # amount of diagnostic output (0 to 5)
 
 gas = ct.Solution('abf_mech90torr.cti')
 gas.TPX = tburner, p, reactants
 
-mdot = 0.204 * gas.density
+mdot = 0.204 * gas.density  # kg/(m^2*s)
+print(gas.density)
+print(mdot)
 
 f = ct.BurnerFlame(gas, width=width)
 f.burner.mdot = mdot
@@ -34,22 +36,24 @@ f.save('c2h2_o2_ar_burner_flame.xml', 'multi', 'solution with multicomponent tra
 
 f.write_csv('c2h2_o2_ar_burner_flame.csv', quiet=False)
 
-# Get pyrene concentration
+# Get concentration indices
 iA4 = gas.species_index('A4')
-iC2H2_index = gas.species_index('C2H2')
-iCO_index = gas.species_index('CO')
+iC2H2 = gas.species_index('C2H2')
+iCO = gas.species_index('CO')
 iH = gas.species_index('H')
 iH2 = gas.species_index('H2')
 iH2O = gas.species_index('H2O')
 iO2 = gas.species_index('O2')
 iOH = gas.species_index('OH')
 
-index, max_pyrene_molar_concentration = max(enumerate(f.concentrations[pyrene_index, :]), key=operator.itemgetter(1)) #kmoles/m^3
+# print("Location: "+str(f.grid[0]))
+# print("Temp: "+str(f.T[0]))
+# max_index, max_pyrene_molar_concentration = max(enumerate(f.concentrations[iA4, :]), key=operator.itemgetter(1)) #kmoles/m^3
+# min_index, min_pyrene_molar_concentration = min(enumerate(f.concentrations[iA4,:]), key=operator.itemgetter(1))
 # pyrene_number_concentration = max_pyrene_molar_concentration * 1000 *  6.0221409e23
-pyrene_mole_fraction = f.X[pyrene_index, index]
-reaction_temp = f.T[index]
-print(pyrene_index)
-# print(max_pyrene_molar_concentration, reaction_temp)
+# pyrene_mole_fraction = f.X[pyrene_index, index]
+# reaction_temp = f.T[index]
+
 """
 # plot major species
 plt.plot(f.grid, f.X[gas.species_index('C4H2'), :], 'b', label='C4H2')
@@ -86,10 +90,33 @@ plt.show()
 
 
 # plot pyrene
-plt.plot(f.grid, f.X[pyrene_index, :], 'b', label='pyrene')
+plt.plot(f.grid, f.X[iA4, :], 'b', label='pyrene')
 plt.xticks(np.arange(0, .05, .01))
 plt.yscale('log')
 plt.ylim(10e-9, 10e-5)
+plt.xlabel('distance (m)')
+plt.ylabel('concentration (molefraction)')
 plt.title('Calculated concentration of pyrene')
 plt.show()
 """
+
+pyrene_mole_fraction = f.X[iA4, :]
+print("distance (m):")
+print(f.grid[0:237])
+print("pyrene concentration (mole fraction): ")
+print(pyrene_mole_fraction[0:237])
+print("temp (K): ")
+print(f.T[0:237])
+
+plt.plot(f.grid, pyrene_mole_fraction, 'b', label='pyrene')
+plt.yscale('log')
+plt.show()
+plt.plot(f.grid, f.T, 'g', label='temperature')
+plt.ylim(1500, 2000)
+plt.show()
+
+print("min pyrene: "+str(min(pyrene_mole_fraction)))
+print("max pyrene: "+str(max(pyrene_mole_fraction)))
+print("min temp: "+str(min(f.T)))
+print("max temp: "+str(max(f.T)))
+print(gas.density)
