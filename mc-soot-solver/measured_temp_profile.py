@@ -29,10 +29,7 @@ f_3 = np.poly1d(np.polyfit(distance[2:-1], measured_temp[2:-1], 2))
 
 plt.plot(distance, measured_temp, 'o', color='r')
 plt.plot(x_vals_1, f_1(x_vals_1), '-', color='g')
-plt.plot(x_vals_2, f_2(x_vals_2), '-', color='b')
+plt.plot(x_vals_2, f_2(x_vals_2), '-', color='g')
 plt.plot(x_vals_1, f_1(x_vals_1), '-', color='g')
 plt.plot(x_vals_3, f_3(x_vals_3), '-', color='g')
 plt.show()
-
-print(max(f_2a(x_vals_2)))
-print(max(f_2b(x_vals_2)))
