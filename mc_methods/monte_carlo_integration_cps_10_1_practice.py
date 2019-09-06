@@ -1,3 +1,6 @@
+# This is an exercise to practice Monte Carlo integration methods
+# Credit for exercise is attributed to: https://github.com/afeiguin/comp-phys/blob/master/10_01_montecarlo_integration.ipynb
+
 import numpy as np
 import math
 import random
