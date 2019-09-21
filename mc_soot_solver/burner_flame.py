@@ -47,6 +47,7 @@ iH2O = gas.species_index('H2O')
 iO2 = gas.species_index('O2')
 iOH = gas.species_index('OH')
 
+print(f.P)
 """
 # Get temp at first index
 print("Location: "+str(f.grid[0]))
