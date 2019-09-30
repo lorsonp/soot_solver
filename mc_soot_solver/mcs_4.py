@@ -1,15 +1,16 @@
 import math
 import numpy as np
 import random
-# from burner_flame import max_pyrene_molar_concentration, reaction_temp
+from burner_flame_fixed_temp_profile import min_pyrene_molar_concentration, reaction_temp
 import matplotlib.pyplot as plt
 
 # max_pyrene_molar_concentration = 2.117959208612895e-08      # kmole/m^3
 # reaction_temp = 1916.1938344245214                          # K
 
 # try using a lower concentraton of pyrene to test algorithm
-pyrene_molar_concentration = 1.992921496406221e-10        # kmole/m^3
+pyrene_molar_concentration = 5.18e-12        # kmole/m^3
 reaction_temp = 300.0
+
 
 def initiate_system(pyrene_molar_concentration, reaction_temp):
     # constants
@@ -236,14 +237,15 @@ def coagulation_step(particles, P, kernel_1, kernel_2):
 
     return particles, P
 
+def plot_results():
+
+    # Plot number density (cm^-3) over time (ms)
+
+
+# -------------- #
+# Run Simulation #
+# -------------- #
 
 [C, P, particles, tao] = initiate_system(pyrene_molar_concentration, reaction_temp)
 [particles, P, tao] = main(C, P, particles, tao)
-x_axis = [10000 * i for i in range (1,101)]
-plt.plot(x_axis, tao, 'bo')
-plt.yscale('log')
-plt.title("Time step duration")
-plt.xlabel("nth time step")
-plt.ylabel("time step duration (s)")
-plt.show()
 

@@ -11,41 +11,17 @@ import math
 import matplotlib.pyplot as plt
 import csv
 from scipy import interpolate
+# from get_temp_profile import *
+# from get_conc_profile import *
 
 
-def get_data():
-    # import distance grid
-    f = open('cantera_distance.csv', 'r')
+def get_data(file):
+
+    # import distance grid, temp, and concentration
+    f = open(file, 'r')
     reader = csv.reader(f, quoting=csv.QUOTE_NONNUMERIC)
-    distance_grid = []
 
-    for row in reader:
-        for element in row:
-            distance_grid.append(element)
-            if type(distance_grid[-1]) is str:
-                del distance_grid[-1]
-
-    # import calculated temp
-    f = open('cantera_temp.csv', 'r')
-    reader = csv.reader(f, quoting=csv.QUOTE_NONNUMERIC)
-    calculated_temp = []
-
-    for row in reader:
-        for element in row:
-            calculated_temp.append(element)
-            if type(calculated_temp[-1]) is str:
-                del calculated_temp[-1]
-
-    # import calculated concentration
-    f = open('cantera_concentration.csv', 'r')
-    reader = csv.reader(f, quoting=csv.QUOTE_NONNUMERIC)
-    calculated_concentration = []
-
-    for row in reader:
-        for element in row:
-            calculated_concentration.append(element)
-            if type(calculated_concentration[-1]) is str:
-                del calculated_concentration[-1]
+    [distance_grid, calculated_temp, calculated_concentration] = [r for r in reader]
 
     new_concentration = []
 
@@ -55,26 +31,6 @@ def get_data():
         # calculated_concentration = [math.log(element, 10) for element in calculated_concentration]
 
     return distance_grid, calculated_temp, calculated_concentration, new_concentration
-
-
-def convert_d_and_c(d_to_convert, c_to_convert):
-    c_distance_vals = np.zeros(len(d_to_convert))
-    concentration_vals = np.zeros(len(c_to_convert))
-
-    # convert distance to mm
-    for index in range(len(d_to_convert)):
-        c_distance_vals[index] = ((d_to_convert[index] - 0.539) / 18.967)  # m
-
-    c_distance_vals[-1] = 0.09
-
-    # convert concentration to molefraction
-    for index in range(len(c_to_convert)):
-        if c_to_convert[index] >= 4.860:
-            concentration_vals[index] = 10 ** -((c_to_convert[index] - 4.860) / 0.757) - 7  # log power of molefraction
-        else:
-            concentration_vals[index] = 10 ** -((c_to_convert[index] - 4.097) / 0.763) - 6  # log power of molefraction
-
-    return c_distance_vals, concentration_vals
 
 
 def get_fitted_temp(t_distance_vals, temp_vals, distance_grid):
@@ -111,6 +67,26 @@ def get_fitted_temp(t_distance_vals, temp_vals, distance_grid):
             fitted_temp.append(f_3(index))
 
     return fitted_temp
+
+
+def convert_d_and_c(d_to_convert, c_to_convert):
+    c_distance_vals = np.zeros(len(d_to_convert))
+    concentration_vals = np.zeros(len(c_to_convert))
+
+    # convert distance to mm
+    for index in range(len(d_to_convert)):
+        c_distance_vals[index] = ((d_to_convert[index] - 0.539) / 18.967)  # m
+
+    c_distance_vals[-1] = 0.09
+
+    # convert concentration to molefraction
+    for index in range(len(c_to_convert)):
+        if c_to_convert[index] >= 4.860:
+            concentration_vals[index] = 10 ** -((c_to_convert[index] - 4.860) / 0.757) - 7  # log power of molefraction
+        else:
+            concentration_vals[index] = 10 ** -((c_to_convert[index] - 4.097) / 0.763) - 6  # log power of molefraction
+
+    return c_distance_vals, concentration_vals
 
 
 def get_fitted_concentration(c_distance_vals, concentration_vals, distance_grid):
@@ -158,7 +134,7 @@ def get_fitted_concentration(c_distance_vals, concentration_vals, distance_grid)
 
 
 # Get data from cantera
-distance_grid, calculated_temp, calculated_concentration, new_concentration = get_data()  # mm, K, molefraction
+distance_grid, calculated_temp, calculated_concentration, new_concentration = get_data(file='burner_flame_output_data.csv')  # m, K, molefraction
 
 # Measured Temp data points
 t_distance_vals = [0.0, 0.00381, 0.0063, 0.01286, 0.02053, 0.02921, 0.03852, 0.04815, 0.05889, 0.07074, 0.08296, 0.09]  # m
@@ -169,6 +145,7 @@ d_to_convert = [0.570, 0.577, 0.586, 0.597, 0.608, 0.618, 0.624, 0.633, 0.647, 0
             0.775, 0.784, 0.809, 0.854, 0.940, 1.080, 1.106, 1.295, 1.484, 1.674, 1.864, 2.054, 2.246]  # inches
 c_to_convert = [5.067, 5.0114, 4.9357, 4.860, 4.7837, 4.7074, 4.6311, 4.5548, 4.4785, 4.4022, 4.3259, 4.2496, 4.1733,
                 4.136, 4.1733, 4.2496, 4.3259, 4.4022, 4.4785, 4.5548, 4.594, 4.593, 4.584, 4.550, 4.507, 4.454, 4.392, 4.326]  # inches
+
 c_distance_vals, concentration_vals = convert_d_and_c(d_to_convert, c_to_convert)
 
 # Fit Temp data to Cantera Grid
@@ -179,27 +156,22 @@ fitted_concentration = get_fitted_concentration(c_distance_vals, concentration_v
 
 # Plot Calculated against measured Data
 fig, (temp_comp, conc_comp) = plt.subplots(1, 2)
-fig.suptitle('Measured vs. Calculated Data Comparison (Temp Calculated from Energy Equation)')
+fig.suptitle('Measured vs. Calculated Temperature and Concentration')
 
 # Plot temp
 temp_comp.plot(t_distance_vals, temp_vals, 'o', color='g')
-temp_comp.plot(distance_grid, fitted_temp, '-', color='g', label='measured')
-temp_comp.plot(distance_grid, calculated_temp, '-', color='b', label='calculated')
-temp_comp.title.set_text('Temperature (K)')
+temp_comp.plot(distance_grid, fitted_temp, '-', color='g', label='Measured (Bockhorn et al.)')
+temp_comp.plot(distance_grid, calculated_temp, '-', color='b', label='Calculated (Cantera burner flame)')
+temp_comp.set_xlabel('Distance (m)')
+temp_comp.set_ylabel('Temperature (K)')
 temp_comp.legend()
 
 # Plot concentration
 conc_comp.plot(c_distance_vals, concentration_vals, 'o', color='g')
-conc_comp.plot(distance_grid, fitted_concentration, '-', color='g', label='measured')
-conc_comp.plot(distance_grid, new_concentration, '-', color='b', label='calculated')
-conc_comp.title.set_text('Concentration (mole fraction)')
+conc_comp.plot(distance_grid, fitted_concentration, '-', color='g', label='Measured (Bockhorn et al.)')
+conc_comp.plot(distance_grid, new_concentration, '-', color='b', label='Calculated (Cantera burner flame)')
+conc_comp.set_xlabel('Distance (m)')
+conc_comp.set_ylabel('Concentration (mole fraction, log scale)')
 conc_comp.legend()
 plt.show()
-
-# Format temperature profile for Cantera's burner_flame
-# Convert distance grid mm to m
-distance_grid = [element/1000 for element in distance_grid]  # m
-# Adjust distance grid and c_distance_vals range to [0,1]
-distance_grid = [element/distance_grid[-1] for element in distance_grid]
-c_distance_vals = [element/c_distance_vals[-1] for element in c_distance_vals]
 
