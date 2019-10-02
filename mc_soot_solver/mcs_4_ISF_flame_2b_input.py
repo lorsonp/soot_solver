@@ -1,65 +1,74 @@
-
+# This version of the solver takes input from ISF Flame 2B.  Credit for the input data is attributed to Guillaume Blanquardt, et al.
 
 import math
 import numpy as np
 import random
-from burner_flame_fixed_temp_profile import min_pyrene_molar_concentration, reaction_temp
+from measured_vs_ISF_flame_2b_comparison import *
 import matplotlib.pyplot as plt
+import operator
+from scipy.interpolate import interp1d
 
-# max_pyrene_molar_concentration = 2.117959208612895e-08      # kmole/m^3
-# reaction_temp = 1916.1938344245214                          # K
-
-# try using a lower concentraton of pyrene to test algorithm
-# pyrene_molar_concentration = 5.18e-12        # kmole/m^3
-# reaction_temp = 300.0
-
-def initiate_system(pyrene_molar_concentration, reaction_temp):
+ISF_time_grid = [element/1000 for element in ISF_time]  # convert ms to s
+def initiate_system(pyrene_molar_concentration, reaction_temp, time_grid, distance_grid):
     # constants
     C = {}
-    C["NA"] = 6.0221409e23     # mol^-1
-    C["kB"] = 1.38064852e-23    # m^2*kg/(s^2*K)
-    C["mc"] = 12            # amu
-    C["rho"] = 1.8e-3       # kg/cm^3
+    C["NA"] = 6.0221409e23          # mol^-1
+    C["kB"] = 1.38064852e-23 * 1e4  # convert m^2*kg/(s^2*K) to cm^2*kg/(s^2*K)
+    C["mc"] = 12 * 1.661e-27        # convert amu > kg
+    C["rho"] = 1.8e-3               # kg/cm^3
 
     # set initial parameters
     P = {}
-    P["pyrene_number_concentration"] = pyrene_molar_concentration * 1000 * C["NA"] / 1e6  # molecules/cm^3
+    P["pyrene_number_concentration"] = [element * 1000 * C["NA"] / 1e6 for element in pyrene_molar_concentration]  # molecules/cm^3
     P["temp"] = reaction_temp
+    P["time_grid"] = time_grid
     P["N"] = 1e3  # sample size
-    mc_kg = C["mc"]*1.661e-27   # convert to kg
-    kB_cm = C["kB"]*1e4         # convert to cm^2*kg/(s^2*K)
-    P["A"] = 2.2 * (3*mc_kg/(4*np.pi*C["rho"]))**(1/6) * (6*kB_cm*P["temp"]/C["rho"])  # cm/s
-
     max_size = 3.2e7  # maximum particle size
 
     # define particles
     particles = [0]
 
-    # define start, running, and stop time
+    # define functions to interpolate temp and number concentration
+    F = {}
+    F["interp_temp_function"] = interp1d(P["time_grid"], P["temp"])
+    F["interp_conc_function"] = interp1d(P["time_grid"], P["pyrene_number_concentration"])
+
+    # define start, running, and stop time (s)
     start_time = 0.0
     P["Running Time"] = start_time
-    P["Stop Time"] = 1
+    P["Stop Time"] = 0.01  # cannot exceed 0.112 s
 
     P["Count Time Steps"] = 0
     P["Count Inception Steps"] = 0
     P["Count Coagulation Steps"] = 0
     P["Count Fictitious Coagulation Steps"] = 0
 
+    # define arrays to hold plotting values
+    soot_number_density = []  # total number of stochastic particles per unit volume
+    time_plot_points = []      # s
+    distance_plot_points = []  # m
     tao = []
-    return C, P, particles, tao
+    count_time = 0
+    return C, F, P, particles, tao, count_time, soot_number_density, time_plot_points, distance_plot_points
 
 
-def main(C, P, particles, tao):
+def main(C, F, P, particles, tao, count_time, soot_number_density, time_plot_points, distance_plot_points):
 
     while P["Running Time"] < P["Stop Time"]:
     # for i in range(1000000):
+        # ================================= #
+        # Get temp and conc at current time #
+        # ================================= #
+        interpolated_temp, interpolated_pyrene_conc = interpolate_value(P, F)
+
         # ============================================ #
         # Wait an Exponentially Distributed Time Step #
         # ============================================ #
-        inception_rate = get_inception_rate(C, P)
-        coagulation_rate, kernel_1, kernel_2 = get_coagulation_rate(C, P, particles)
+        inception_rate = get_inception_rate(C, P, interpolated_temp, interpolated_pyrene_conc)
+        coagulation_rate, kernel_1, kernel_2 = get_coagulation_rate(C, P, interpolated_temp, particles)
         tao = calculate_time_step(rates=[inception_rate, coagulation_rate])
         P["Running Time"] += tao
+        count_time += tao
 
         # ============================== #
         # Select event probabilistically #
@@ -82,20 +91,38 @@ def main(C, P, particles, tao):
             print("100,000 time steps. Running time: "+str(P["Running Time"])+" seconds.")
             P["Count Time Steps"] = P["Count Time Steps"] - 10000
 
-    return particles, P, tao
+        if count_time >= 5e-5:
+            velocity = 0.0673  # m/s
+            soot_number_density.append(sum(particles))  # total number of stochastic particles per unit volume
+            time_plot_points.append(P["Running Time"])  # s
+            distance_plot_points.append(P["Running Time"] * velocity)  # m
+            count_time = count_time - 5e-5
 
+    print(P["Running Time"])
 
-def get_inception_rate(C, P):
-    mc_kg = C["mc"] * 1.661e-27  # convert amu > kg
-    kB_cm = C["kB"] * 1e4  # convert m^2*kg/(s^2*K) to cm^2*kg/(s^2*K)
+    return particles, P, soot_number_density, time_plot_points, distance_plot_points
+
+def interpolate_value(P, F):
+
+    interpolated_temp = float(F["interp_temp_function"](P["Running Time"]))
+    interpolated_conc = float(F["interp_conc_function"](P["Running Time"]))
+
+    return interpolated_temp, interpolated_conc
+
+def get_inception_rate(C, P, interpolated_temp, interpolated_pyrene_concentration):
+
     d_PAH = 7.9e-8  # cm
-    pyrene_coagulation = 2.2 * (np.pi*kB_cm*P["temp"]/mc_kg)**0.5 * d_PAH**2  # cm^3/s
-    inception_rate = 0.5 * pyrene_coagulation * P["pyrene_number_concentration"]**2 * P["N"]
+    pyrene_coagulation = 2.2 * (np.pi*C["kB"]*interpolated_temp/C["mc"])**0.5 * d_PAH**2  # cm^3/s
+    inception_rate = 0.5 * pyrene_coagulation * interpolated_pyrene_concentration**2
+
+    # Adjust inception_rate so 20 pyrenes make 10 soots
+    inception_rate = inception_rate/10
 
     return inception_rate
 
 
-def get_coagulation_rate(C, P, particles):
+def get_coagulation_rate(C, P, interpolated_temp, particles):
+    A = 2.2 * (3 * C["mc"] / (4 * np.pi * C["rho"])) ** (1 / 6) * (6 * C["kB"] * interpolated_temp / C["rho"])  # cm/s
     number_of_particles = sum(particles)
 
     if number_of_particles <= 2:
@@ -117,7 +144,7 @@ def get_coagulation_rate(C, P, particles):
                    * kernel_2b - particles[index] * (index + 32) ** (1 / 6))
 
         kernel_sum = (number_of_particles - 1)*sum(kernel_1) + sum(kernel_2)
-        coagulation_rate = 1.4178 * P["A"]/P["N"] * kernel_sum
+        coagulation_rate = 1.4178 * A/P["N"] * kernel_sum
 
     return coagulation_rate, kernel_1, kernel_2
 
@@ -151,13 +178,10 @@ def select_probability(rates):
 def inception_step(particles, P):
 
     # Add particle of size 32 to ensemble
-    particles[0] += 1
-    if P["pyrene_number_concentration"] > 0:
-        P["pyrene_number_concentration"] = P["pyrene_number_concentration"] - 2*P["N"]  # how to determine # of particles per stochastic particle?
-    else:
-        P["pyrene_number_concentration"] = 0
+    particles[0] += 10
 
     P["Count Inception Steps"] += 1
+
     return particles, P
 
 
@@ -238,15 +262,27 @@ def coagulation_step(particles, P, kernel_1, kernel_2):
 
     return particles, P
 
-def plot_results():
+# def plot_results():
 
-    # Plot number density (cm^-3) over time (ms)
+# Plot number density (cm^-3) over time (ms)
 
 
 # -------------- #
 # Run Simulation #
 # -------------- #
 
-[C, P, particles, tao] = initiate_system(pyrene_molar_concentration, reaction_temp)
-[particles, P, tao] = main(C, P, particles, tao)
+[C, F, P, particles, tao, count_time, soot_number_density, time_plot_points, distance_plot_points] = initiate_system(pyrene_molar_concentration=ISF_conc, reaction_temp=ISF_temp, time_grid=ISF_time_grid, distance_grid=ISF_distance)
+[particles, P, soot_number_density, time_plot_points, distance_plot_points] = main(C, F, P, particles, tao, count_time, soot_number_density, time_plot_points, distance_plot_points)
 
+# ------------ #
+# Plot Results #
+# ------------ #
+plt.plot(time_plot_points, soot_number_density, 'k', label='Number Density')
+plt.yscale('log')
+plt.show()
+
+print(particles)
+print(P)
+with open('ISF_flame_2b_soot_data.csv', 'w') as file:
+    writer = csv.writer(file)
+    writer.writerows([particles, soot_number_density, time_plot_points, distance_plot_points])
