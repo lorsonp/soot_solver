@@ -1,5 +1,3 @@
-
-
 import math
 import numpy as np
 import random
@@ -33,7 +31,7 @@ def initiate_system(pyrene_molar_concentration, reaction_temp):
     max_size = 3.2e7  # maximum particle size
 
     # define particles
-    particles = [0]
+    particles = [1e14]
 
     # define start, running, and stop time
     start_time = 0.0
@@ -51,8 +49,8 @@ def initiate_system(pyrene_molar_concentration, reaction_temp):
 
 def main(C, P, particles, tao):
 
-    while P["Running Time"] < P["Stop Time"]:
-    # for i in range(1000000):
+    # while P["Running Time"] < P["Stop Time"]:
+    for i in range(10):
         # ============================================ #
         # Wait an Exponentially Distributed Time Step #
         # ============================================ #

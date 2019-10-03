@@ -27,18 +27,22 @@ measured_temp_grid, measured_temp = get_temp_prof(t_distance_vals, temp_vals, wi
 # --------------------------- #
 
 # plot ISF data vs. measured data
-fig, (t, c) = plt.subplots(1,2)
-fig.suptitle('Measured vs. Calculated Temperature and Concentration')
-t.plot(ISF_distance, ISF_temp, 'b', label='Calculated (ISF Flame 2B)')
-t.plot([i*ISF_distance[-1] for i in measured_temp_grid], measured_temp, 'g', label='Measured (Bockhorn et al.)')
-t.set_xlabel('Distance (m)')
-t.set_ylabel('Temperature (K)')
-t.legend()
+# plot_results(ISF_distance, measured_temp_grid, measured_temp, measured_conc_grid, measured_conc)
+def plot_results(ISF_distance, measured_temp_grid, measured_temp, measured_conc_grid, measured_conc):
+    fig, (t, c) = plt.subplots(1,2)
+    fig.suptitle('Measured vs. Calculated Temperature and Concentration')
+    t.plot(ISF_distance, ISF_temp, 'b', label='Calculated (ISF Flame 2B)')
+    t.plot([i*ISF_distance[-1] for i in measured_temp_grid], measured_temp, 'g', label='Measured (Bockhorn et al.)')
+    t.set_xlabel('Distance (m)')
+    t.set_ylabel('Temperature (K)')
+    t.legend()
 
-c.plot(ISF_distance, ISF_conc, 'b', label='Calculated (ISF Flame 2B)')
-c.plot([i*ISF_distance[-1] for i in measured_conc_grid], measured_conc, 'g', label='Measured (Bockhorn et al.)')
-c.set_xlabel('Distance (m)')
-c.set_ylabel('Concentration (molefraction)')
-c.set_yscale('log')
-c.legend(loc='lower right')
-plt.show()
+    c.plot(ISF_distance, ISF_conc, 'b', label='Calculated (ISF Flame 2B)')
+    c.plot([i*ISF_distance[-1] for i in measured_conc_grid], measured_conc, 'g', label='Measured (Bockhorn et al.)')
+    c.set_xlabel('Distance (m)')
+    c.set_ylabel('Concentration (molefraction)')
+    c.set_yscale('log')
+    c.legend(loc='lower right')
+    plt.show()
+
+    return t, c
