@@ -7,6 +7,7 @@ from get_temp_profile import *
 from get_conc_profile import *
 import numpy as np
 import matplotlib.pyplot as plt
+import operator
 
 # -------- #
 # Get Data #

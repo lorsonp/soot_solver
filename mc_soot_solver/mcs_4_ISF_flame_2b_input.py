@@ -27,7 +27,7 @@ def initiate_system(pyrene_molar_concentration, reaction_temp, time_grid, distan
     max_size = 3.2e7  # maximum particle size
 
     # define particles
-    particles = [0]
+    particles = [1000]
 
     # define functions to interpolate temp and number concentration
     F = {}
@@ -37,7 +37,7 @@ def initiate_system(pyrene_molar_concentration, reaction_temp, time_grid, distan
     # define start, running, and stop time (s)
     start_time = 0.0
     P["Running Time"] = start_time
-    P["Stop Time"] = 0.02  # cannot exceed 0.112 s
+    P["Stop Time"] = 0.01  # cannot exceed 0.112 s
 
     P["Count Time Steps"] = 0
     P["Count Inception Steps"] = 0
@@ -69,7 +69,6 @@ def main(C, F, P, particles, tao, count_time, soot_number_density, time_plot_poi
         coagulation_rate, kernel_1, kernel_2 = get_coagulation_rate(C, P, interpolated_temp, particles)
         tao = calculate_time_step(rates=[inception_rate, coagulation_rate])
         P["Running Time"] += tao
-        count_time += tao
 
         # ============================== #
         # Select event probabilistically #
@@ -85,21 +84,20 @@ def main(C, F, P, particles, tao, count_time, soot_number_density, time_plot_poi
         else:
             particles, P = coagulation_step(particles, P, kernel_1, kernel_2)
 
-        P["Count Time Steps"] += 100
-        if P["Count Time Steps"] == 1e6:
+        P["Count Time Steps"] += 1e4
+        if P["Count Time Steps"] == 1e7:
             # print("time step: "+str(tao))
             # print("pyrene number concentration: "+str(P["pyrene_number_concentration"]))
-            print("1e6 time steps. Running time: "+str(P["Running Time"])+" seconds; Inception Steps: "+str(P["Count Inception Steps"])+" steps; Coagulation: "+str(P["Count Coagulation Steps"])+" steps; Time Step: "+str(tao)+" seconds.")
-            P["Count Time Steps"] = P["Count Time Steps"] - 1e6
+            print("1e7 iterations. Running time: "+str(P["Running Time"])+" seconds; Inception Steps: "+str(P["Count Inception Steps"])+" steps; Coagulation: "+str(P["Count Coagulation Steps"])+" steps; Time Step: "+str(tao)+" seconds.")
+            P["Count Time Steps"] = P["Count Time Steps"] - 1e7
 
-        if count_time >= 5e-5:
             velocity = 0.0673  # m/s
             soot_number_density.append(sum(particles))  # total number of stochastic particles per unit volume
             time_plot_points.append(P["Running Time"])  # s
             distance_plot_points.append(P["Running Time"] * velocity)  # m
-            count_time = count_time - 5e-5
 
     print(P["Running Time"])
+    print(inception_rate+coagulation_rate)
 
     return particles, P, soot_number_density, time_plot_points, distance_plot_points
 
@@ -116,8 +114,8 @@ def get_inception_rate(C, P, interpolated_temp, interpolated_pyrene_concentratio
     pyrene_coagulation = 2.2 * (np.pi*C["kB"]*interpolated_temp/C["mc"])**0.5 * d_PAH**2  # cm^3/s
     inception_rate = 0.5 * pyrene_coagulation * interpolated_pyrene_concentration**2
 
-    # Adjust inception_rate so 200 pyrene make 100 soot
-    inception_rate = inception_rate/100
+    # Adjust inception_rate so 2000 pyrene make 1000 soot
+    inception_rate = inception_rate/1e4
 
     return inception_rate
 
@@ -145,10 +143,11 @@ def get_coagulation_rate(C, P, interpolated_temp, particles):
                    * kernel_2b - particles[index] * (index + 32) ** (1 / 6))
 
         kernel_sum = (number_of_particles - 1)*sum(kernel_1) + sum(kernel_2)
-        coagulation_rate = 1.4178 * A/P["N"] * kernel_sum
 
-        # Adjust coagulation_rate so 200 soot make 100 soot
-        coagulation_rate = coagulation_rate / 100
+        coagulation_rate = 1.4178 * A * kernel_sum
+
+        # Adjust coagulation_rate so 2000 soot make 1000 soot
+        coagulation_rate = coagulation_rate / 1e4
 
     return coagulation_rate, kernel_1, kernel_2
 
@@ -182,9 +181,9 @@ def select_probability(rates):
 def inception_step(particles, P):
 
     # Add particle of size 32 to ensemble
-    particles[0] += 10
+    particles[0] += 1e5
 
-    P["Count Inception Steps"] += 100
+    P["Count Inception Steps"] += 1e4
 
     return particles, P
 
@@ -247,22 +246,22 @@ def coagulation_step(particles, P, kernel_1, kernel_2):
     if r <= coag_kernel / maj_kernel:
 
         # Remove 2 selected particles
-        particles[i_size - 32] = particles[i_size - 32] - 100
-        particles[j_size - 32] = particles[j_size - 32] - 100
+        particles[i_size - 32] = particles[i_size - 32] - 1e4
+        particles[j_size - 32] = particles[j_size - 32] - 1e4
 
         # Add new particle to system
         new_particle_size = i_size + j_size
         if new_particle_size - 32 > len(particles):
             for index in range(len(particles), new_particle_size - 32):
                 particles.append(0)
-            particles[new_particle_size - 33] = 100
+            particles[new_particle_size - 33] = 1e4
         else:
-            particles[new_particle_size - 33] += 100
+            particles[new_particle_size - 33] += 1e4
 
-        P["Count Coagulation Steps"] += 100
+        P["Count Coagulation Steps"] += 1e5
 
     else:
-        P["Count Fictitious Coagulation Steps"] += 100
+        P["Count Fictitious Coagulation Steps"] += 1e4
 
     return particles, P
 
@@ -275,15 +274,22 @@ def coagulation_step(particles, P, kernel_1, kernel_2):
 # ------------ #
 # Save Results #
 # ------------ #
-print(particles)
+
 
 with open('ISF_flame_2b_soot_data.csv', 'w') as file:
     writer = csv.writer(file)
     writer.writerows([particles, soot_number_density, time_plot_points, distance_plot_points])
 
+print(particles, soot_number_density, time_plot_points, distance_plot_points)
+
 # ------------ #
 # Plot Results #
 # ------------ #
 plt.plot(time_plot_points, soot_number_density, 'k', label='Number Density')
+plt.title('Number Density vs. Time (s)')
+plt.ylabel('Number Density')
+plt.xlabel('Time (s)')
 plt.yscale('log')
 plt.show()
+
+
