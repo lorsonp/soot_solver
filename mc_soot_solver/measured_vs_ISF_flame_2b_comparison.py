@@ -26,7 +26,7 @@ measured_temp_grid, measured_temp = get_temp_prof(t_distance_vals, temp_vals, wi
 # --------------------------- #
 # Plot Temp and Concentration #
 # --------------------------- #
-
+"""
 # plot ISF data vs. measured data
 # plot_results(ISF_distance, measured_temp_grid, measured_temp, measured_conc_grid, measured_conc)
 def plot_results(ISF_distance, measured_temp_grid, measured_temp, measured_conc_grid, measured_conc):
@@ -47,3 +47,4 @@ def plot_results(ISF_distance, measured_temp_grid, measured_temp, measured_conc_
     plt.show()
 
     return t, c
+"""
